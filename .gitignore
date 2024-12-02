@@ -1,0 +1,16 @@
+.DS*
+*.log
+*.log 
+.api 
+.rest
+srun
+list.json 
+*.rest
+.vscode/
+.venv
+env/
+database_volume/
+vault_volume/
+**/__pycache__
+.env 
+*.log 

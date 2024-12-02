@@ -1,0 +1,128 @@
+version: "3.8"
+
+networks:
+  transcedance:
+    name: transcedance
+    driver: bridge
+
+
+volumes:
+  database_volume:
+    name: database_volume  
+    driver: local
+    driver_opts:
+      type: none
+      o: bind 
+      device: ${PWD}/database_volume
+  backend:
+    name: backend 
+    driver: local
+    driver_opts:
+      type: none
+      o: bind 
+      device: ${PWD}/backend
+  frontend:
+    name: frontend 
+    driver: local
+    driver_opts:
+      type: none
+      o: bind 
+      device:  ${PWD}/frontend/dist
+  vault_volume:
+    name: vault_volume
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/vault_volume
+
+
+services:
+  postgresql:
+    image: postgres
+    build: postgres
+    container_name: postgresql
+    hostname: postgresql
+    ports:
+      -  5432:5432
+    volumes:
+      - database_volume:/var/lib/postgresql/13/main
+
+    networks:
+      - transcedance
+    depends_on:
+      - vault
+    restart: always
+    env_file:
+      - .env 
+
+  gunicorn:
+    container_name: gunicorn 
+    image: gunicorn
+    hostname: gunicorn
+    build: gunicorn
+    networks:
+      - transcedance  
+    depends_on:
+      - vault
+      - daphne
+      - redis 
+    volumes:
+      - backend:/app
+    env_file:
+      - .env 
+    restart: always
+
+  daphne:
+    container_name: daphne 
+    image: daphne
+    hostname: daphne
+    build: daphne
+    networks:
+      - transcedance  
+    depends_on:
+      - vault
+      - postgresql
+    volumes:
+      - backend:/app
+    env_file:
+      - .env 
+    restart: always
+
+  
+  nginx:
+    container_name: nginx 
+    image: nginx
+    build: nginx
+    depends_on:
+      - gunicorn
+    networks:
+      - transcedance  
+    volumes:
+        - backend:/var/www/html
+        - frontend:/frontend
+
+    ports:
+      - 443:443 
+    restart: always
+
+  redis:
+    image: redis:latest
+    container_name: redis 
+    hostname: redis 
+    networks:
+      - transcedance  
+    restart: always
+
+  vault:
+    image: vault:1337
+    build: vault
+    container_name: vault-container
+    ports:
+      - "8200:8200"
+    env_file:
+      - .env 
+    networks:
+      - transcedance
+    volumes:
+      - vault_volume:/vault/file
